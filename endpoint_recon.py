@@ -1,6 +1,7 @@
 import os
 import re
 import csv
+import sys
 
 def remove_duplicates_with_location(items):
     unique_items = []
@@ -18,6 +19,12 @@ def remove_duplicates_with_location(items):
             duplicate_items.append(location)
     
     return unique_items, unique_locations, duplicate_items_count, duplicate_items
+
+def write_to_csv(filename, headers, data):
+    with open(filename, "w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(headers)
+        writer.writerows(data)
 
 def find_rest_endpoints(directory):
     rest_endpoints = []
@@ -109,7 +116,11 @@ def find_graphql_mutations(directory):
     return num_mutations, graphql_mutations, graphql_locations
 
 
-directory = "/home/kali/Desktop/surge/rooster/src/"
+if len(sys.argv) > 1:
+    directory = sys.argv[1]
+else:
+    print("Please provide the directory path as a command line argument.")
+    sys.exit(1)
 
 num_queries, queries, query_locations = find_graphql_queries(directory)
 num_mutations, mutations, mutation_locations = find_graphql_mutations(directory)
@@ -121,31 +132,13 @@ mutations, mutation_locations, mutation_duplicate_count, mutation_dup_items = re
 num_queries -= query_duplicate_count
 num_mutations -= mutation_duplicate_count
 
-with open("queries.csv", "w", newline="") as query_file:
-    writer = csv.writer(query_file)
-    writer.writerow(["Query", "Location"])
-    for query, location in zip(queries, query_locations):
-        writer.writerow([query, location])
-    writer.writerow(["Total number of GraphQL queries found:", num_queries])
-
-with open("mutations.csv", "w", newline="") as mutation_file:
-    writer = csv.writer(mutation_file)
-    writer.writerow(["Mutation", "Location"])
-    for mutation, location in zip(mutations, mutation_locations):
-        writer.writerow([mutation, location])
-    writer.writerow(["Total number of GraphQL mutations found:", num_mutations])
-
-with open("rest_endpoints.csv", "w", newline="") as endpoint_file:
-    writer = csv.writer(endpoint_file)
-    writer.writerow(["Endpoint", "Location"])
-    for endpoint, location in zip(endpoints, rest_locations):
-        writer.writerow([endpoint, location])
-    writer.writerow(["Total number of REST endpoints found:", num_endpoints])
+write_to_csv("queries.csv", ["Query", "Location"], zip(queries, query_locations))
+write_to_csv("mutations.csv", ["Mutation", "Location"], zip(mutations, mutation_locations))
+write_to_csv("rest_endpoints.csv", ["Endpoint", "Location"], zip(endpoints, rest_locations))
 
 print(f"Total number of GraphQL queries found: {num_queries}")
 print(f"Total number of GraphQL mutations found: {num_mutations}")
 print(f"Total number of REST endpoints found: {num_endpoints}")
-
 print(f"Number of duplicate GraphQL queries removed: {query_duplicate_count}")
 print(f"Number of duplicate GraphQL mutations removed: {mutation_duplicate_count}")
 
