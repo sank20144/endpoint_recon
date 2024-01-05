@@ -26,6 +26,7 @@ def write_to_csv(filename, headers, data):
         writer.writerow(headers)
         writer.writerows(data)
 
+
 def find_rest_endpoints(directory):
     rest_endpoints = []
     rest_locations = []
@@ -51,6 +52,39 @@ def find_rest_endpoints(directory):
                                 num_endpoints += 1 
     
     return num_endpoints, rest_endpoints, rest_locations
+
+def find_swagger_endpoints(directory):
+    swagger_endpoints = []
+    swagger_locations = []
+    num_endpoints = 0
+    
+    for root, dirs, files in os.walk(directory):
+        if 'node_modules' in dirs:
+            dirs.remove('node_modules')  # Skip the node_modules folder
+        if 'test' in dirs:
+            dirs.remove('test')  # Skip the test folder
+        for file in files:
+            if file.endswith((".js", ".ts")):
+                filepath = os.path.join(root, file)
+                with open(filepath, "r") as f:
+                    content = f.read()
+                    matches = re.findall(r"(\w+):\s*{\s*path:\s*'(.*?)',\s*method:\s*'(.*?)'", content, re.DOTALL)
+                    
+                    for match in matches:
+                        endpoint = match[2]+ " " + match[1]
+                        swagger_endpoints.append(endpoint)
+                        swagger_locations.append((filepath, 0))
+                        num_endpoints += 1
+                        
+                    #matches = re.findall(r"(\w+):\s*{\s*path:\s*(?:([^']*)|\((.*?)\))\s*,\s*method:\s*'(.*?)'", content, re.MULTILINE)
+                    matches = re.findall(r"(\w+):\s*{\s*path:\s*\(.*?\)\s*=>\s*`(.*?)`,\s*method:\s*'(\w+)'", content, re.DOTALL)
+                    for match in matches:
+                        endpoint = match[2] + " " + match[1]
+                        swagger_endpoints.append(endpoint)
+                        swagger_locations.append((filepath, 0))
+                        num_endpoints += 1
+    
+    return num_endpoints, swagger_endpoints, swagger_locations
 
 def find_graphql_queries(directory):
     graphql_queries = []
@@ -125,6 +159,7 @@ else:
 num_queries, queries, query_locations = find_graphql_queries(directory)
 num_mutations, mutations, mutation_locations = find_graphql_mutations(directory)
 num_endpoints, endpoints, rest_locations = find_rest_endpoints(directory)
+num_swagger_endpoints, swagger_endpoints, swagger_locations = find_swagger_endpoints(directory)
 
 queries, query_locations, query_duplicate_count, query_dup_items = remove_duplicates_with_location(zip(queries, query_locations))
 mutations, mutation_locations, mutation_duplicate_count, mutation_dup_items = remove_duplicates_with_location(zip(mutations, mutation_locations))
@@ -135,10 +170,12 @@ num_mutations -= mutation_duplicate_count
 write_to_csv("queries.csv", ["Query", "Location"], zip(queries, query_locations))
 write_to_csv("mutations.csv", ["Mutation", "Location"], zip(mutations, mutation_locations))
 write_to_csv("rest_endpoints.csv", ["Endpoint", "Location"], zip(endpoints, rest_locations))
+write_to_csv("swagger_endpoints.csv", ["Name", "Path"], zip(swagger_endpoints, swagger_locations))
 
 print(f"Total number of GraphQL queries found: {num_queries}")
 print(f"Total number of GraphQL mutations found: {num_mutations}")
 print(f"Total number of REST endpoints found: {num_endpoints}")
+print(f"Total number of Swagger endpoints found: {num_swagger_endpoints}")
 print(f"Number of duplicate GraphQL queries removed: {query_duplicate_count}")
 print(f"Number of duplicate GraphQL mutations removed: {mutation_duplicate_count}")
 
